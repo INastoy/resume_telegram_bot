@@ -34,29 +34,25 @@ async def process_track_price(message: types.Message, state: FSMContext):
         data['desired_price'] = message.text
 
     warning = await message.answer('Ожидайте, идет поиск...')
-    res = get_product_data(data['product_code'])
+    res: dict = get_product_data(data['product_code'])
     await warning.delete()
-    await message.answer(f'Название: {res[0]}\nСтарая цена: {res[1]}:\nНовая цена: {res[2]}:\nБонусы:{res[3]}')
+    await message.answer(
+        f'Название: {res["product_name"]}\n'
+        f'Старая цена: {res["product_old_price"]}:\n'
+        f'Текущая цена: {res["product_new_price"]}:\n'
+        f'Бонусы:{res["product_bonuses"]}'
+    )
     tg_user_id = message.from_user.id
     product_code = data['product_code']
     desired_price = data['desired_price']
     await state.finish()
 
-    task: AsyncResult = task_get_product_data.delay(product_code=product_code,
-                                       desired_price=desired_price,
-                                       tg_user_id=tg_user_id
-                                       )
+    task: AsyncResult = task_get_product_data.apply_async((product_code, desired_price, tg_user_id),
+                                                          queue='main',
+                                                          countdown=10
+                                                          )
 
     await message.answer(f'task created {task}')
-
-
-#
-# async def process_track_task(state: FSMContext):
-#     async with state.proxy() as data:
-#         await task_get_product_data.delay(product_code=data['product_code'],
-#                                           desired_price=data['desired_price'],
-#                                           tg_user_id=tg_user_id
-#                                           )
 
 
 def register_handlers_tracker(dp: Dispatcher):
@@ -65,4 +61,3 @@ def register_handlers_tracker(dp: Dispatcher):
     dp.register_message_handler(process_track_code, state=Form.product_code)
     dp.register_message_handler(process_track_price, state=Form.desired_price)
     dp.async_task(process_track_price)
-    # dp.register_message_handler(process_track_task, state=Form.task)
