@@ -8,6 +8,7 @@ from tg_bot.price_tracker.tracker import get_product_data
 from tg_bot.price_tracker.tracker_task_alerts import send_price_alert
 
 app = Celery('tasks', broker='redis://localhost:6379/0', backend='redis://localhost:6379/0')
+app.control.rate_limit('tasks.task_get_product_data', '3/m')
 # app.conf.broker_url = 'redis://localhost:6379/0'
 # app.conf.result_backend = 'redis://localhost:6379/0'
 
@@ -28,7 +29,12 @@ def task_get_product_data(self, product_code, desired_price, tg_user_id):
             print(price_alert)
             await send_price_alert(price_alert, tg_user_id)
         else:
-            self.retry(countdown=30)
+            self.retry(countdown=60)
+            # self.retry(eta=)
+            # s = self.signature_from_request(countdown=60, queue='main')
+            # print(s)
+            # s.apply_async()
+            # s.apply_async((product_code, desired_price, tg_user_id), countdown=30)
 
     asyncio.run(async_get_product_data())
 

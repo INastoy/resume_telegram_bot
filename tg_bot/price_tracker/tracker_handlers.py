@@ -1,3 +1,5 @@
+import datetime
+
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
@@ -49,8 +51,10 @@ async def process_track_price(message: types.Message, state: FSMContext):
 
     task: AsyncResult = task_get_product_data.apply_async((product_code, desired_price, tg_user_id),
                                                           queue='main',
-                                                          countdown=10
+                                                          countdown=10,
                                                           )
+    # task_get_product_data.apply_async(('130', '2000', '749111078'), queue='main',
+    #                                   eta=datetime.strptime('22/06/28 23:37:00', '%y/%m/%d %H:%M:%S'))
 
     await message.answer(f'task created {task}')
 
