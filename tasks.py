@@ -1,7 +1,8 @@
 import asyncio
 
 from aiogram import types
-from celery import Celery
+from celery import Celery, Task
+from celery.result import AsyncResult
 from celery.schedules import crontab
 
 from tg_bot.price_tracker.tracker import get_product_data
@@ -29,7 +30,7 @@ def task_get_product_data(self, product_code, desired_price, tg_user_id):
             print(price_alert)
             await send_price_alert(price_alert, tg_user_id)
         else:
-            self.retry(countdown=60)
+            self.retry(countdown=10)
             # self.retry(eta=)
             # s = self.signature_from_request(countdown=60, queue='main')
             # print(s)

@@ -1,6 +1,7 @@
 from aiogram import types, Dispatcher
 from aiogram.types import ParseMode
 
+from db import Users
 from tg_bot.price_tracker.tracker_kb import tracker_menu
 from tg_bot.main_menu.menu_kb import main_menu
 
@@ -11,6 +12,7 @@ async def cmd_start(message: types.Message):
     """
 
     await message.answer('Главное меню:', reply_markup=main_menu)
+    await Users.objects.get_or_create(tg_user_id=message.from_user.id)
 
 
 async def get_resume(callback: types.CallbackQuery):
