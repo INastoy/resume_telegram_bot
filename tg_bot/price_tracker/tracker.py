@@ -12,18 +12,17 @@ session.headers = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl
                    "--disable-blink-features": "AutomationControlled"}
 
 
-def get_product_url(product_code) -> str:
-    return URL + product_code
+# def get_product_url(product_code) -> str:
+#     return URL + product_code
 
 
-def get_product_data(product_code) -> dict:
-    product_url = get_product_url(product_code)
-    response_product = session.get(product_url, stream=True)
+def get_product_data(product_url) -> dict:
+    response_product = session.get(product_url)
     print(response_product.status_code)
-    if response_product.status_code == 429:
-        print(response_product.text)
-    while response_product.status_code != 200:
-        sleep(1)
+    # if response_product.status_code == 429:
+    #     print(response_product.text)
+    # while response_product.status_code != 200:
+    #     sleep(1)
     product_soup = BeautifulSoup(response_product.text, 'lxml')
     product_name = product_soup.find('h1', class_='Heading Heading_level_1 ProductHeader__title').text.strip()
     product_old_price = product_soup.find('span', class_='ProductHeader__price-old_current-price').text.strip()

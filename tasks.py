@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from aiogram import types
 from celery import Celery, Task
@@ -20,22 +21,19 @@ def add(x, y):
 
 
 @app.task(bind=True)
-def task_get_product_data(self, product_code, desired_price, tg_user_id):
+def task_get_product_data(self, product_url, desired_price, tg_user_id):
     self.max_retries = None
 
     async def async_get_product_data():
-        price_alert: dict = get_product_data(product_code)
-        if int(price_alert.get('product_new_price')) <= int(desired_price):
+        try:
+            price_alert: dict = get_product_data(product_url)
 
-            print(price_alert)
-            await send_price_alert(price_alert, tg_user_id)
-        else:
-            self.retry(countdown=10)
-            # self.retry(eta=)
-            # s = self.signature_from_request(countdown=60, queue='main')
-            # print(s)
-            # s.apply_async()
-            # s.apply_async((product_code, desired_price, tg_user_id), countdown=30)
+            if int(price_alert.get('product_new_price')) <= int(desired_price):
+                await send_price_alert(price_alert, tg_user_id, product_url)
+            else:
+                self.retry(countdown=60)
+        except AttributeError:
+            self.retry(countdown=60)
 
     asyncio.run(async_get_product_data())
 

@@ -8,6 +8,7 @@ from db import metadata, engine
 from tg_bot.bot import bot
 from tg_bot.main_menu.menu_handlers import register_handlers_menu
 from tg_bot.price_tracker.tracker_handlers import register_handlers_tracker
+from tg_bot.price_tracker.tracker_handlers_checker import register_handlers_tracker_check
 
 logging.basicConfig(level=logging.INFO)
 
@@ -17,6 +18,7 @@ metadata.create_all(engine)
 
 
 register_handlers_menu(dp)
+register_handlers_tracker_check(dp)
 register_handlers_tracker(dp)
 
 if __name__ == '__main__':
