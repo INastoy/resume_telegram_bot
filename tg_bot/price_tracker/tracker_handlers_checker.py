@@ -1,5 +1,3 @@
-import re
-
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 
@@ -17,6 +15,9 @@ async def process_track_is_valid_url(message: types.Message) -> types.Message:
 
 async def process_is_url_exists_or_tracking_already(message: types.Message, state: FSMContext):
     valid_url = validate_url(message.text)
+    print('Ты тут')
+    print(valid_url)
+
     message.text = valid_url
 
     is_tracking_already = await Products.objects \

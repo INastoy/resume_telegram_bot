@@ -6,6 +6,8 @@ from celery.result import AsyncResult
 
 from db import Products
 from tasks import task_get_product_data
+from tg_bot.main_menu.menu_kb import main_menu
+from tg_bot.price_tracker.tracker_kb import back_to_menu, tracker_menu
 from tg_bot.price_tracker.validators import validate_url
 
 
@@ -15,7 +17,7 @@ class Form(StatesGroup):
 
 
 async def get_about(callback: types.CallbackQuery):
-    await callback.message.answer('Здесь должно быть описание функционала трекера')
+    await callback.message.answer('Здесь должно быть описание функционала трекера', reply_markup=back_to_menu)
 
 
 async def track_price(callback: types.CallbackQuery):
@@ -29,13 +31,13 @@ async def track_price(callback: types.CallbackQuery):
 async def untrack_product_price(callback: types.CallbackQuery):
     products = await Products.objects.filter(tg_user_id=callback.from_user.id).all()
     if not products:
-        return await callback.message.answer('Нет отслеживаемых товаров')
-    tracker_menu = InlineKeyboardMarkup(row_width=1)
+        return await callback.message.answer('Нет отслеживаемых товаров', reply_markup=back_to_menu)
+    untrack_products_menu = InlineKeyboardMarkup(row_width=1)
     for product in products:
 
-        tracker_menu.add(InlineKeyboardButton(text=product.product_name,
-                                              callback_data=''.join(['delete_', product.task_id])))
-    await callback.message.answer('Отслеживаемые товары:', reply_markup=tracker_menu)
+        untrack_products_menu.add(InlineKeyboardButton(text=product.product_name,
+                                                       callback_data=''.join(['delete_', product.task_id])))
+    await callback.message.answer('Отслеживаемые товары:', reply_markup=untrack_products_menu)
 
 
 async def delete_tracking_product(callback: types.CallbackQuery):
@@ -44,7 +46,7 @@ async def delete_tracking_product(callback: types.CallbackQuery):
         task = AsyncResult(id=task_id)
         task.revoke()
         await Products.objects.delete(task_id=task_id)
-        await callback.message.answer('Товар удален из списка отслеживаемых')
+        await callback.message.answer('Товар удален из списка отслеживаемых', reply_markup=back_to_menu)
 
 
 async def process_tracking_cancel(callback: types.CallbackQuery, state: FSMContext):
@@ -53,7 +55,7 @@ async def process_tracking_cancel(callback: types.CallbackQuery, state: FSMConte
         return
 
     await state.finish()
-    await callback.message.answer('Отменено')
+    await callback.message.answer('Отменено', reply_markup=back_to_menu)
 
 
 async def process_track_url(message: types.Message, state: FSMContext, current_price):
@@ -76,7 +78,7 @@ async def process_track_price(message: types.Message, state: FSMContext):
     # )
     tg_user_id = message.from_user.id
     product_url = data['product_url']
-    desired_price = data['desired_price']
+    desired_price: int = data['desired_price']
     product_name = data['product_name']
     await state.finish()
 
@@ -92,7 +94,8 @@ async def process_track_price(message: types.Message, state: FSMContext):
                                          tg_user_id=tg_user_id,
                                          )
     await message.answer(f'Товар {product_name} добавлен в список отслеживания\n'
-                         f'Как только цена снизится до желаемого уровня, Вы получите сообщение')
+                         f'Как только цена снизится до желаемого уровня, Вы получите сообщение',
+                         reply_markup=back_to_menu)
 
     # task_get_product_data.apply_async(('130', '2000', '749111078'), queue='main',
     #                                   eta=datetime.strptime('22/06/28 23:37:00', '%y/%m/%d %H:%M:%S'))
@@ -112,16 +115,32 @@ async def stop_process_tracking(callback: types.CallbackQuery, state: FSMContext
 
     await Products.objects.delete(product_url=url)
     await state.finish()
-    await callback.message.answer('Отслеживание прекращено')
+    await callback.message.answer('Отслеживание прекращено', reply_markup=back_to_menu)
+
+
+async def to_main_menu(callback: types.CallbackQuery):
+    return await callback.message.answer('Главное меню:', reply_markup=main_menu)
+
+
+async def to_tracker_menu(callback: types.CallbackQuery):
+    return await callback.message.answer('Меню трекера цен Ситилинк:', reply_markup=tracker_menu)
+
+
+async def invalid_input(message: types.Message):
+    print(message.sticker)
+    return await message.reply('Неизвестная команда\nДля навигации воспользуйтесь кнопками:', reply_markup=back_to_menu)
 
 
 def register_handlers_tracker(dp: Dispatcher):
     dp.register_callback_query_handler(get_about, text='get_tracker_about')
     dp.register_callback_query_handler(track_price, text='get_track_price')
     dp.register_callback_query_handler(untrack_product_price, text='untrack_product_price')
+    dp.register_callback_query_handler(to_main_menu, text='to_main_menu')
+    dp.register_callback_query_handler(to_tracker_menu, text='to_tracker_menu')
     dp.register_callback_query_handler(delete_tracking_product, lambda callback: True)
     dp.register_message_handler(process_track_url, state=Form.product_url)
     dp.register_message_handler(process_track_price, state=Form.desired_price)
     dp.async_task(process_track_price)
     dp.register_callback_query_handler(stop_process_tracking, text='stop_tracking', state='*')
     dp.register_callback_query_handler(process_tracking_cancel, text='cancel', state='*')
+    dp.register_message_handler(invalid_input)

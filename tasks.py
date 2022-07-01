@@ -21,15 +21,17 @@ def add(x, y):
 
 
 @app.task(bind=True)
-def task_get_product_data(self, product_url, desired_price, tg_user_id):
+def task_get_product_data(self, product_url, desired_price: int, tg_user_id):
     self.max_retries = None
 
     async def async_get_product_data():
         try:
             price_alert: dict = get_product_data(product_url)
-
-            if int(price_alert.get('product_new_price')) <= int(desired_price):
-                await send_price_alert(price_alert, tg_user_id, product_url)
+            if price_alert.get('product_new_price'):
+                if int(price_alert.get('product_new_price')) <= int(desired_price):
+                    await send_price_alert(price_alert, tg_user_id, product_url)
+                else:
+                    self.retry(countdown=60)
             else:
                 self.retry(countdown=60)
         except AttributeError:

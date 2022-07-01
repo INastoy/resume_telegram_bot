@@ -21,7 +21,7 @@ async def get_resume(callback: types.CallbackQuery):
 
 
 async def get_tracker(callback: types.CallbackQuery):
-    await callback.message.answer('Выберите опцию:', reply_markup=tracker_menu)
+    await callback.message.answer('Меню трекера цен Ситилинк:', reply_markup=tracker_menu)
 
 
 def register_handlers_menu(dp: Dispatcher):
