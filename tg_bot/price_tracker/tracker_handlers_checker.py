@@ -14,11 +14,9 @@ async def process_track_is_valid_url(message: types.Message) -> types.Message:
 
 
 async def process_is_url_exists_or_tracking_already(message: types.Message, state: FSMContext):
-    valid_url = validate_url(message.text)
-    print('Ты тут')
-    print(valid_url)
+    valid_url: str = validate_url(message.text)
 
-    message.text = valid_url
+    message.text = validate_url(message.text)
 
     is_tracking_already = await Products.objects \
         .filter(tg_user_id=message.from_user.id) \
@@ -35,7 +33,6 @@ async def process_is_url_exists_or_tracking_already(message: types.Message, stat
         product_data: dict = get_product_data(valid_url)
         await warning.delete()
     except AttributeError as ex:
-        print(ex)
         return await message.reply('Запрашиваемая страница недоступна.\n'
                                    'Проверьте правильность ввода или повторите попытку позднее',
                                    reply_markup=cancel_menu)
@@ -48,15 +45,6 @@ async def process_is_url_exists_or_tracking_already(message: types.Message, stat
             f'Бонусы:{product_data["product_bonuses"]}'
         )
 
-    # is_tracking_already = await Products.objects \
-    #     .filter(tg_user_id=message.from_user.id) \
-    #     .filter(product_url=valid_url) \
-    #     .exists()
-
-    # if is_tracking_already:
-    #     return await message.reply('Вы уже отслеживаете этот товар. Введите другой адрес'
-    #                                ' или нажмите кнопку "Прекратить отслеживание"',
-    #                                reply_markup=stop_tracking_menu)
     async with state.proxy() as data:
         data['product_name'] = product_data["product_name"]
     await process_track_url(message, state, current_price=current_price)

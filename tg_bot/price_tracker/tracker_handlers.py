@@ -24,7 +24,8 @@ async def track_price(callback: types.CallbackQuery):
     await Form.product_url.set()
     await callback.message.answer(
         'Отправьте ссылку на интересующий товар: \n'
-        'Например: https://www.citilink.ru/product/smartfon-xiaomi-redmi-9c-128gb-4gb-sinii-3g-4g-6-53-and10-802-11-b-g-n-1616355/',
+        'Например: https://www.citilink.ru/product/'
+        'smartfon-xiaomi-redmi-9c-128gb-4gb-sinii-3g-4g-6-53-and10-802-11-b-g-n-1616355/',
         disable_web_page_preview=True)
 
 
@@ -32,11 +33,14 @@ async def untrack_product_price(callback: types.CallbackQuery):
     products = await Products.objects.filter(tg_user_id=callback.from_user.id).all()
     if not products:
         return await callback.message.answer('Нет отслеживаемых товаров', reply_markup=back_to_menu)
+
     untrack_products_menu = InlineKeyboardMarkup(row_width=1)
     for product in products:
+        untrack_products_menu.add(InlineKeyboardButton(
+            text=f'{product.product_name}. *Ваша цена*: {product.desired_price}',
+            callback_data=''.join(['delete_', product.task_id]))
+        )
 
-        untrack_products_menu.add(InlineKeyboardButton(text=product.product_name,
-                                                       callback_data=''.join(['delete_', product.task_id])))
     await callback.message.answer('Отслеживаемые товары:', reply_markup=untrack_products_menu)
 
 
@@ -69,30 +73,21 @@ async def process_track_url(message: types.Message, state: FSMContext, current_p
 async def process_track_price(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['desired_price'] = message.text
-    # res: dict = get_product_data(data['product_url'])
-    # await message.answer(
-    #     f'Название: {res["product_name"]}\n'
-    #     f'Старая цена: {res["product_old_price"]}:\n'
-    #     f'Текущая цена: {res["product_new_price"]}:\n'
-    #     f'Бонусы:{res["product_bonuses"]}'
-    # )
+
     tg_user_id = message.from_user.id
     product_url = data['product_url']
-    desired_price: int = data['desired_price']
+    desired_price = data['desired_price']
     product_name = data['product_name']
     await state.finish()
 
-    task: AsyncResult = task_get_product_data.apply_async((product_url, desired_price, tg_user_id),
-                                                          queue='main',
-                                                          countdown=10,
-                                                          )
+    task: AsyncResult = task_get_product_data.apply_async(
+        (product_url, desired_price, tg_user_id), queue='main', countdown=10
+    )
 
-    await Products.objects.get_or_create(product_url=product_url,
-                                         product_name=product_name,
-                                         desired_price=desired_price,
-                                         task_id=task.task_id,
-                                         tg_user_id=tg_user_id,
+    await Products.objects.get_or_create(product_url=product_url, product_name=product_name,
+                                         desired_price=desired_price, task_id=task.task_id, tg_user_id=tg_user_id
                                          )
+
     await message.answer(f'Товар {product_name} добавлен в список отслеживания\n'
                          f'Как только цена снизится до желаемого уровня, Вы получите сообщение',
                          reply_markup=back_to_menu)
@@ -127,7 +122,6 @@ async def to_tracker_menu(callback: types.CallbackQuery):
 
 
 async def invalid_input(message: types.Message):
-    print(message.sticker)
     return await message.reply('Неизвестная команда\nДля навигации воспользуйтесь кнопками:', reply_markup=back_to_menu)
 
 
