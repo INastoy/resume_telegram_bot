@@ -176,7 +176,7 @@ async def invalid_input(message: types.Message):
     Выводит кнопки навигации по боту.
     Кнопка: выводится если пользователь ввел неизвестное сообщение и другие обработчики ошибок не обработали сообщение
     """
-    return await message.reply('Неизвестная команда\nДля навигации воспользуйтесь кнопками:', reply_markup=back_to_menu)
+    return await message.reply('Неизвестная команда\nДля вызова меню нажмите на /start:')
 
 
 def register_handlers_tracker(dp: Dispatcher):

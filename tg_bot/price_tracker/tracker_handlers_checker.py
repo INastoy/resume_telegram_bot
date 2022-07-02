@@ -40,6 +40,7 @@ async def process_is_url_exists_or_tracking_already(message: types.Message, stat
                                    ' или нажмите кнопку "Прекратить отслеживание"',
                                    reply_markup=stop_tracking_menu)
 
+
     try:
         warning = await message.answer('Ожидайте, идет поиск...')
         product_data: dict = get_product_data(valid_url)

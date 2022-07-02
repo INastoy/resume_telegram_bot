@@ -17,12 +17,22 @@ class BaseMeta(ormar.ModelMeta):
     database = database
 
 
+class Cities(ormar.Model):
+    class Meta(BaseMeta):
+        tablename = 'cities'
+
+    id: int = ormar.Integer(primary_key=True)
+    city_name: str = ormar.String(max_length=64, default='Москва')
+    city_code: str = ormar.String(max_length=32, default='?action=changeCity&space=msk_cl:')
+
+
 class Users(ormar.Model):
     class Meta(BaseMeta):
         tablename = 'users'
 
     tg_user_id: int = ormar.Integer(primary_key=True)
     is_active: bool = ormar.Boolean(default=True)
+    city: Cities = ormar.ForeignKey(Cities)
 
 
 class Products(ormar.Model):
@@ -37,12 +47,3 @@ class Products(ormar.Model):
     tg_user_id: Users = ormar.ForeignKey(Users)
     is_active: bool = ormar.Boolean(default=True)
 
-
-# class Tasks(ormar.Model):
-#     class Meta(BaseMeta):
-#         tablename = 'tasks'
-#
-#     product_url: int = ormar.Integer(primary_key=True)
-#     tg_user_id: Users = ormar.ForeignKey(Users)
-#     task_id: int = ormar.Integer()
-#     is_active: bool = ormar.Boolean(default=True)
