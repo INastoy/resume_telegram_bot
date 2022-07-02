@@ -9,11 +9,23 @@ from tg_bot.price_tracker.validators import is_valid_url, validate_url
 
 
 async def process_track_is_valid_url(message: types.Message) -> types.Message:
+    """
+    Проверяет введенный пользователем URL на сооветствие минимальным требованиям
+    Кнопка: выводится если пользователь ввел невалидный URL или URL другого магазина
+    """
 
     return await message.reply('Повторите попытку!\nПоддерживаются только ссылки на Ситилинк', reply_markup=cancel_menu)
 
 
 async def process_is_url_exists_or_tracking_already(message: types.Message, state: FSMContext):
+    """
+    Многокомпонентная функция
+    1. Приводит введенный пользователем URL к стандартному формату (https://www.citilink.ru/product/ ...)
+    2. Проверяет не отслеживается ли уже данный товар пользователем
+    3. Проверяет доступность введенного пользователем URL
+    Кнопка: срабатывет при попытке начать отслеживание товара пользователем.
+    """
+
     valid_url: str = validate_url(message.text)
 
     message.text = validate_url(message.text)
@@ -32,7 +44,7 @@ async def process_is_url_exists_or_tracking_already(message: types.Message, stat
         warning = await message.answer('Ожидайте, идет поиск...')
         product_data: dict = get_product_data(valid_url)
         await warning.delete()
-    except AttributeError as ex:
+    except AttributeError:
         return await message.reply('Запрашиваемая страница недоступна.\n'
                                    'Проверьте правильность ввода или повторите попытку позднее',
                                    reply_markup=cancel_menu)
@@ -51,6 +63,11 @@ async def process_is_url_exists_or_tracking_already(message: types.Message, stat
 
 
 async def process_track_is_valid_price(message: types.Message):
+    """
+    Проверяет введенную пользователем цену на сооветствие минимальным требованиям
+    Кнопка: выводится если пользователь ввел что-то кроме цифр в цену товара
+    """
+
     return await message.reply('Повторите попытку. \nЦена должна содержать только цифры\nНапример: 12000',
                                reply_markup=cancel_menu)
 

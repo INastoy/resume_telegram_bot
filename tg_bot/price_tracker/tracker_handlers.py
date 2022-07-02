@@ -7,20 +7,35 @@ from celery.result import AsyncResult
 from db import Products
 from tasks import task_get_product_data
 from tg_bot.main_menu.menu_kb import main_menu
-from tg_bot.price_tracker.tracker_kb import back_to_menu, tracker_menu
+from tg_bot.price_tracker.tracker_kb import back_to_menu, tracker_menu, track_price_button
 from tg_bot.price_tracker.validators import validate_url
 
 
 class Form(StatesGroup):
-    product_url = State()
-    desired_price = State()
+    product_url: State = State()
+    desired_price: State = State()
 
 
 async def get_about(callback: types.CallbackQuery):
-    await callback.message.answer('Здесь должно быть описание функционала трекера', reply_markup=back_to_menu)
+    """
+    Выводит подробное описание функционала трекера цен.
+    Кнопка: "Описание"
+    """
+
+    await callback.message.answer(
+        'Трекер предназначен для отслеживания цен на интересующий Вас товар\n'
+        'На данный момент реализовано отслеживание для магазина Ситилинк\n'
+        'Для начала работы нажмите "Отслеживать цену товара" и следуйте инструкциям на экране',
+        reply_markup=back_to_menu.add(track_price_button)
+    )
 
 
 async def track_price(callback: types.CallbackQuery):
+    """
+    Запускает цепочку взаимодействий с пользователем для начала отслеживания цены на товар.
+    Кнопка: "Отслеживать цену товара"
+     """
+
     await Form.product_url.set()
     await callback.message.answer(
         'Отправьте ссылку на интересующий товар: \n'
@@ -30,6 +45,10 @@ async def track_price(callback: types.CallbackQuery):
 
 
 async def untrack_product_price(callback: types.CallbackQuery):
+    """
+    Выводит список отслеживаемых пользователем товаров для возможности прекращения отслеживания.
+    Кнопка: "Отменить отслеживание"
+    """
     products = await Products.objects.filter(tg_user_id=callback.from_user.id).all()
     if not products:
         return await callback.message.answer('Нет отслеживаемых товаров', reply_markup=back_to_menu)
@@ -45,6 +64,10 @@ async def untrack_product_price(callback: types.CallbackQuery):
 
 
 async def delete_tracking_product(callback: types.CallbackQuery):
+    """
+    Удаляет товар из списка отслеживаемых
+    Кнопка: "Название товара"
+    """
     if callback.data.startswith('delete_'):
         task_id = callback.data.split('_')[1]
         task = AsyncResult(id=task_id)
@@ -54,6 +77,10 @@ async def delete_tracking_product(callback: types.CallbackQuery):
 
 
 async def process_tracking_cancel(callback: types.CallbackQuery, state: FSMContext):
+    """
+    Позволяет прервать цепочку взаимодействия с пользователем при вводе данных товара для отслеживания.
+    Кнопка: выводится во время цепочки взаимодействия с пользователем, если тот ввел неправильный URl или цену товара.
+    """
     current_state = await state.get_state()
     if current_state is None:
         return
@@ -63,6 +90,11 @@ async def process_tracking_cancel(callback: types.CallbackQuery, state: FSMConte
 
 
 async def process_track_url(message: types.Message, state: FSMContext, current_price):
+    """
+    Сохраняет валидированный URL от пользователя в машину состояний.
+    Кнопка: выводится автоматически после успешной валидации URL, введенного пользователем
+    """
+
     async with state.proxy() as data:
         data['product_url'] = message.text
 
@@ -71,6 +103,11 @@ async def process_track_url(message: types.Message, state: FSMContext, current_p
 
 
 async def process_track_price(message: types.Message, state: FSMContext):
+    """
+    Сохраняет валидированную цену от пользователя в машину состояний.
+    Кнопка: выводится автоматически после успешной валидации цены, введенной пользователем
+    """
+
     async with state.proxy() as data:
         data['desired_price'] = message.text
 
@@ -97,6 +134,11 @@ async def process_track_price(message: types.Message, state: FSMContext):
 
 
 async def stop_process_tracking(callback: types.CallbackQuery, state: FSMContext):
+    """
+    Останавливает отслеживание товара.
+    Кнопка: выводится если пользователь пытается добавить URL на товар, который уже отслеживается.
+    """
+
     current_state = await state.get_state()
     if current_state is None:
         return
@@ -114,14 +156,26 @@ async def stop_process_tracking(callback: types.CallbackQuery, state: FSMContext
 
 
 async def to_main_menu(callback: types.CallbackQuery):
+    """
+    Позволяет пользователю вернуться в главное меню
+    Кнопка: "<- В главное меню"
+    """
     return await callback.message.answer('Главное меню:', reply_markup=main_menu)
 
 
 async def to_tracker_menu(callback: types.CallbackQuery):
+    """
+    Позволяет пользователю вернуться в меню трекера
+    Кнопка: "<- В меню трекера"
+    """
     return await callback.message.answer('Меню трекера цен Ситилинк:', reply_markup=tracker_menu)
 
 
 async def invalid_input(message: types.Message):
+    """
+    Выводит кнопки навигации по боту.
+    Кнопка: выводится если пользователь ввел неизвестное сообщение и другие обработчики ошибок не обработали сообщение
+    """
     return await message.reply('Неизвестная команда\nДля навигации воспользуйтесь кнопками:', reply_markup=back_to_menu)
 
 
