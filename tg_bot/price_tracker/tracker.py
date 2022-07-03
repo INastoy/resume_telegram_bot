@@ -76,12 +76,6 @@ def get_product_info(product_soup):
 
 def get_product_data(product_url) -> dict:
     response_product = session.get(product_url)
-    # print(response_product.status_code)
-    # with open("file.html", "wb") as file:
-    #     file.write(response_product.content)
-    # with open("file.html", "rb") as file:
-    #     info = BeautifulSoup(file.read(), 'lxml')
-    # product_soup = info
     product_soup = BeautifulSoup(response_product.text, 'lxml')
     product_info = get_product_info(product_soup)
     if product_info.get("product_new_price"):

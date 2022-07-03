@@ -1,7 +1,7 @@
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 
-from db import Products
+from db import Products, Users
 from tg_bot.price_tracker.tracker import get_product_data
 from tg_bot.price_tracker.tracker_handlers import Form, process_track_url
 from tg_bot.price_tracker.tracker_kb import cancel_menu, stop_tracking_menu
@@ -27,7 +27,6 @@ async def process_is_url_exists_or_tracking_already(message: types.Message, stat
     """
 
     valid_url: str = validate_url(message.text)
-
     message.text = validate_url(message.text)
 
     is_tracking_already = await Products.objects \
@@ -40,10 +39,13 @@ async def process_is_url_exists_or_tracking_already(message: types.Message, stat
                                    ' или нажмите кнопку "Прекратить отслеживание"',
                                    reply_markup=stop_tracking_menu)
 
+    user = await Users.objects.filter(tg_user_id=message.from_user.id).select_related('city').first()
+    city_code = user.city.city_code
+    print(city_code)
 
     try:
         warning = await message.answer('Ожидайте, идет поиск...')
-        product_data: dict = get_product_data(valid_url)
+        product_data: dict = get_product_data(valid_url+city_code)
         await warning.delete()
     except AttributeError:
         return await message.reply('Запрашиваемая страница недоступна.\n'

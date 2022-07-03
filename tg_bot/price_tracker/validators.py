@@ -16,17 +16,3 @@ def validate_url(url):
         res = ''.join([result, '/'])
         return res
     return result
-
-
-# def validate_url1(value: str):
-#     pattern = re.compile(r'www\.citilink\.ru/product/.*\d/')
-#     print(pattern)
-#     values_list = re.search(pattern, value)
-#     return values_list
-#
-# # url = 'www.citilink.ru/product/smartfon-xiaomi-redmi-9a-32gb-zelenyi-1402198'
-# # url = 'www_citilink_ru/product/s'
-#
-# # url = 'https://www.citilink.ru/product/smartfon-xiaomi-redmi-9a-32gb-zelenyi-1402198/'
-# # q = is_valid_url(url)
-# # print(q)

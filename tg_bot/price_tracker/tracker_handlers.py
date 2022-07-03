@@ -1,19 +1,24 @@
+import ormar
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from celery.result import AsyncResult
 
-from db import Products
+from db import Products, Cities, Users
 from tasks import task_get_product_data
 from tg_bot.main_menu.menu_kb import main_menu
-from tg_bot.price_tracker.tracker_kb import back_to_menu, tracker_menu, track_price_button
+from tg_bot.price_tracker.tracker_kb import back_to_menu, tracker_menu, enter_city_name_button
 from tg_bot.price_tracker.validators import validate_url
 
 
 class Form(StatesGroup):
     product_url: State = State()
     desired_price: State = State()
+
+
+class CitySearch(StatesGroup):
+    city_name: State = State()
 
 
 async def get_about(callback: types.CallbackQuery):
@@ -26,8 +31,59 @@ async def get_about(callback: types.CallbackQuery):
         'Трекер предназначен для отслеживания цен на интересующий Вас товар\n'
         'На данный момент реализовано отслеживание для магазина Ситилинк\n'
         'Для начала работы нажмите "Отслеживать цену товара" и следуйте инструкциям на экране',
-        reply_markup=back_to_menu.add(track_price_button)
+        reply_markup=back_to_menu
     )
+
+
+async def get_cities_list(callback: types.CallbackQuery):
+    """
+        Выводит список городов. Позволяет пользователю отлеживать цену товара в своем городе
+        Кнопка: "Выбрать город"
+    """
+    big_cities_menu = InlineKeyboardMarkup(row_width=3)
+    big_cities_id = [240, 330, 271, 114, 152, 256, 397, 283, 329, 321, 385, 197]
+    big_cities = await Cities.objects.filter(ormar.or_(id__in=big_cities_id)).all()
+    for city in big_cities:
+        big_cities_menu.insert(InlineKeyboardButton(text=city.city_name,
+                                                    callback_data=''.join(['switch_city_', str(city.id)])))
+    big_cities_menu.add(enter_city_name_button)
+    await callback.message.answer('Выберите название вашего города:\nПо умолчанию: Москва',
+                                  reply_markup=big_cities_menu)
+
+
+async def switch_city(callback: types.CallbackQuery):
+    """
+    Меняет город отслеживания на выбранный пользователем
+    Кнопка: *Название города*
+    """
+    new_city = callback.data.split('_')[2]
+    await Users.objects.filter(tg_user_id=callback.from_user.id).update(city=new_city)
+    await callback.message.answer('Ваш город успешно изменен на {}'.format(new_city))
+
+
+async def enter_city_name(callback: types.CallbackQuery):
+    """
+    Запрашивает у пользователя название города, если он не сделал выбор из предложенных в списке
+    Кнопка: "Поиск по городам"
+    """
+
+    await CitySearch.city_name.set()
+    await callback.message.answer('Введите название вашего города')
+
+
+async def searching_city(message: types.Message, state: FSMContext):
+    """
+    Выполняет поиск указанного пользователем города по базе.
+    Кнопка: нет
+    """
+
+    if new_city := await Cities.objects.get_or_none(city_name=message.text):
+        await Users.objects.filter(tg_user_id=message.from_user.id).update(city=new_city.id)
+        await state.finish()
+        await message.answer('Город успешно изменён на {}'.format(new_city.city_name), reply_markup=back_to_menu)
+    else:
+        await state.finish()
+        await message.answer('Указанный Вами город не найден', reply_markup=back_to_menu)
 
 
 async def track_price(callback: types.CallbackQuery):
@@ -66,14 +122,14 @@ async def untrack_product_price(callback: types.CallbackQuery):
 async def delete_tracking_product(callback: types.CallbackQuery):
     """
     Удаляет товар из списка отслеживаемых
-    Кнопка: "Название товара"
+    Кнопка: *Название товара*
     """
-    if callback.data.startswith('delete_'):
-        task_id = callback.data.split('_')[1]
-        task = AsyncResult(id=task_id)
-        task.revoke()
-        await Products.objects.delete(task_id=task_id)
-        await callback.message.answer('Товар удален из списка отслеживаемых', reply_markup=back_to_menu)
+
+    task_id: str = callback.data.split('_')[1]
+    task: AsyncResult = AsyncResult(id=task_id)
+    task.revoke()
+    await Products.objects.delete(task_id=task_id)
+    return await callback.message.answer('Товар удален из списка отслеживаемых', reply_markup=back_to_menu)
 
 
 async def process_tracking_cancel(callback: types.CallbackQuery, state: FSMContext):
@@ -81,7 +137,7 @@ async def process_tracking_cancel(callback: types.CallbackQuery, state: FSMConte
     Позволяет прервать цепочку взаимодействия с пользователем при вводе данных товара для отслеживания.
     Кнопка: выводится во время цепочки взаимодействия с пользователем, если тот ввел неправильный URl или цену товара.
     """
-    current_state = await state.get_state()
+    current_state: state = await state.get_state()
     if current_state is None:
         return
 
@@ -181,11 +237,15 @@ async def invalid_input(message: types.Message):
 
 def register_handlers_tracker(dp: Dispatcher):
     dp.register_callback_query_handler(get_about, text='get_tracker_about')
+    dp.register_callback_query_handler(get_cities_list, text='get_cities_list')
+    dp.register_callback_query_handler(switch_city, text_startswith='switch_city_')
+    dp.register_callback_query_handler(enter_city_name, text='enter_city_name')
+    dp.register_message_handler(searching_city, state=CitySearch.city_name)
     dp.register_callback_query_handler(track_price, text='get_track_price')
     dp.register_callback_query_handler(untrack_product_price, text='untrack_product_price')
     dp.register_callback_query_handler(to_main_menu, text='to_main_menu')
     dp.register_callback_query_handler(to_tracker_menu, text='to_tracker_menu')
-    dp.register_callback_query_handler(delete_tracking_product, lambda callback: True)
+    dp.register_callback_query_handler(delete_tracking_product, text_startswith='delete_')
     dp.register_message_handler(process_track_url, state=Form.product_url)
     dp.register_message_handler(process_track_price, state=Form.desired_price)
     dp.async_task(process_track_price)

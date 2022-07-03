@@ -23,7 +23,7 @@ class Cities(ormar.Model):
 
     id: int = ormar.Integer(primary_key=True)
     city_name: str = ormar.String(max_length=64, default='Москва')
-    city_code: str = ormar.String(max_length=32, default='?action=changeCity&space=msk_cl:')
+    city_code: str = ormar.String(max_length=128, default='?action=changeCity&space=msk_cl:')
 
 
 class Users(ormar.Model):
@@ -32,7 +32,7 @@ class Users(ormar.Model):
 
     tg_user_id: int = ormar.Integer(primary_key=True)
     is_active: bool = ormar.Boolean(default=True)
-    city: Cities = ormar.ForeignKey(Cities)
+    city: Cities = ormar.ForeignKey(Cities, nullabe=False, related_name='user')
 
 
 class Products(ormar.Model):
