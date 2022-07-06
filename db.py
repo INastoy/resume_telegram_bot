@@ -24,6 +24,7 @@ class Cities(ormar.Model):
     id: int = ormar.Integer(primary_key=True)
     city_name: str = ormar.String(max_length=64, default='Москва')
     city_code: str = ormar.String(max_length=128, default='?action=changeCity&space=msk_cl:')
+    is_big_city: bool = ormar.Boolean(default=False)
 
 
 class Users(ormar.Model):

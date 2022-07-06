@@ -1,7 +1,7 @@
 from aiogram import types, Dispatcher
 
 from db import Users
-from city_parse.db_add_cities import db_fuller
+from city_parse.db_add_cities import db_filler
 from tg_bot.price_tracker.tracker_kb import tracker_menu
 from tg_bot.main_menu.menu_kb import main_menu
 
@@ -12,8 +12,9 @@ async def cmd_start(message: types.Message):
     """
 
     await message.answer('Главное меню:', reply_markup=main_menu)
-    await db_fuller()  #TODO Временное решение для тестового заполнения базы данных кодами городов. Исправить
-    await Users.objects.get_or_create(tg_user_id=message.from_user.id, city=240)
+    await db_filler()  #TODO Временное решение для тестового заполнения базы данных кодами городов. Исправить
+    if not await Users.objects.get_or_none(tg_user_id=message.from_user.id):
+        await Users.objects.create(tg_user_id=message.from_user.id, city=240)
 
 
 async def get_resume(callback: types.CallbackQuery):

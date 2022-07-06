@@ -41,7 +41,6 @@ async def process_is_url_exists_or_tracking_already(message: types.Message, stat
 
     user = await Users.objects.filter(tg_user_id=message.from_user.id).select_related('city').first()
     city_code = user.city.city_code
-    print(city_code)
 
     try:
         warning = await message.answer('Ожидайте, идет поиск...')
@@ -52,17 +51,17 @@ async def process_is_url_exists_or_tracking_already(message: types.Message, stat
                                    'Проверьте правильность ввода или повторите попытку позднее',
                                    reply_markup=cancel_menu)
 
-    current_price = product_data["product_new_price"]
     await message.answer(
             f'Название: {product_data["product_name"]}\n'
             f'Старая цена: {product_data["product_old_price"]}:\n'
-            f'Текущая цена: {current_price}:\n'
+            f'Текущая цена: {product_data["product_new_price"]}:\n'
             f'Бонусы:{product_data["product_bonuses"]}'
         )
 
     async with state.proxy() as data:
         data['product_name'] = product_data["product_name"]
-    await process_track_url(message, state, current_price=current_price)
+        data['current_price'] = product_data["product_new_price"]
+    await process_track_url(message, state)
 
 
 async def process_track_is_valid_price(message: types.Message):
