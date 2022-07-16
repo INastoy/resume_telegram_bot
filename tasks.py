@@ -25,7 +25,7 @@ def task_get_product_data(self, product_url, desired_price: int, tg_user_id):
 
     async def async_get_product_data():
         try:
-            price_alert: Type[ProductInfo] = get_product_data(product_url)
+            price_alert: ProductInfo = get_product_data(product_url)
 
             if price_alert.product_new_price and int(price_alert.product_new_price) <= int(desired_price):
                 await send_price_alert(price_alert, tg_user_id, product_url)

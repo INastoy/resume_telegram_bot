@@ -16,12 +16,12 @@ session.headers = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl
 
 @dataclass
 class ProductInfo:
-    product_name: str
-    is_product_in_stock: bool
-    was_last_in_stock: str
+    product_name: str = None
+    is_product_in_stock: bool = None
+    was_last_in_stock: str = None
     product_old_price: int = None
     product_new_price: int = None
-    product_bonuses: int = None
+    product_bonuses: str = None
 
 
 def get_club_price(product_soup: BeautifulSoup) -> int:
@@ -44,6 +44,8 @@ def get_product_name(product_soup: BeautifulSoup) -> str:
     product_name = product_soup.find("h1", class_="Heading Heading_level_1 ProductPageTitleSection__text")
     if product_name:
         return product_name.text.strip()
+    if not product_name:
+        raise AttributeError()
 
 
 def is_in_stock(product_soup: BeautifulSoup) -> bool:
@@ -63,21 +65,21 @@ def get_last_in_stock(product_soup: BeautifulSoup) -> str:
         return 'Нет данных'
 
 
-def get_product_price(product_soup: BeautifulSoup):
+def get_product_price(product_soup: BeautifulSoup, product_info: ProductInfo) -> ProductInfo:
     product_old_price = product_soup.find(
         'span',
         class_="ProductHeader__price-old_current-price js--ProductHeader__price-old_current-price"
     )
     product_new_price = product_soup.find('span', class_='ProductHeader__price-default_current-price')
     if product_old_price and product_new_price:  # Товар доступен со скидкой
-        ProductInfo.product_old_price = int(product_old_price.text.strip().replace(' ', ''))
+        product_info.product_old_price = int(product_old_price.text.strip().replace(' ', ''))
 
         club_price = get_club_price(product_soup)
         if club_price:
-            ProductInfo.product_new_price = club_price
+            product_info.product_new_price = club_price
         else:
-            ProductInfo.product_new_price = int(product_new_price.text.strip().replace(' ', ''))
-        return ProductInfo
+            product_info.product_new_price = int(product_new_price.text.strip().replace(' ', ''))
+        return product_info
 
     price = product_soup.find(
         'span',
@@ -92,23 +94,24 @@ def get_product_price(product_soup: BeautifulSoup):
             ProductInfo.product_new_price = int(price.text.strip().replace(' ', ''))
 
 
-def get_product_bonuses(product_soup) -> Union[None, str]:
-    if ProductInfo.product_new_price:
+def get_product_bonuses(product_soup: BeautifulSoup, product_info: ProductInfo) -> Union[None, str]:
+    if product_info.product_new_price:
         return product_soup.find('div', class_='ProductHeader__bonus-block').text.strip()
     else:
-        return None
+        return 'Неизвестно'
 
 
-def get_product_data(product_url) -> Type[ProductInfo]:
+def get_product_data(product_url: str) -> ProductInfo:
     response_product = session.get(product_url)
     product_soup = BeautifulSoup(response_product.text, 'lxml')
+    product_info = ProductInfo()
 
-    ProductInfo.product_name = get_product_name(product_soup)
-    ProductInfo.is_product_in_stock = is_in_stock(product_soup)
-    if not ProductInfo.is_product_in_stock:
-        ProductInfo.was_last_in_stock = get_last_in_stock(product_soup)
-        return ProductInfo
-    get_product_price(product_soup)
-    ProductInfo.product_bonuses = get_product_bonuses(product_soup)
+    product_info.product_name = get_product_name(product_soup)
+    product_info.is_product_in_stock = is_in_stock(product_soup)
+    if not product_info.is_product_in_stock:
+        product_info.was_last_in_stock = get_last_in_stock(product_soup)
+        return product_info
+    get_product_price(product_soup, product_info)
+    product_info.product_bonuses = get_product_bonuses(product_soup, product_info)
 
-    return ProductInfo
+    return product_info

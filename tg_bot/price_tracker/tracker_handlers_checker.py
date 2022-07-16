@@ -46,17 +46,17 @@ async def process_is_url_exists_or_tracking_already(message: types.Message, stat
 
     try:
         warning = await message.answer('Ожидайте, идет поиск...')
-        product_data: Type[ProductInfo] = get_product_data(valid_url+city_code)
+        product_data: ProductInfo = get_product_data(valid_url+city_code)
         await warning.delete()
     except AttributeError:
         return await message.reply('Запрашиваемая страница недоступна.\n'
                                    'Проверьте правильность ввода или повторите попытку позднее',
                                    reply_markup=cancel_menu)
 
-    if ProductInfo.is_product_in_stock:
+    if product_data.is_product_in_stock:
         await message.answer(
             f'Название: {product_data.product_name}\n'
-            f'Старая цена: {product_data.product_old_price}:\n'
+            f'Старая цена: {product_data.product_old_price if product_data.product_old_price else "Неизвестно"}:\n'
             f'Текущая цена: {product_data.product_new_price}:\n'
             f'Бонусы: {product_data.product_bonuses}'
         )
@@ -67,10 +67,10 @@ async def process_is_url_exists_or_tracking_already(message: types.Message, stat
             f'Статус: {product_data.was_last_in_stock}:\n'
         )
 
-    async with state.proxy() as data:
-        data['product_name'] = product_data.product_name
-        data['current_price'] = product_data.product_new_price
-    await process_track_url(message, state)
+    # async with state.proxy() as data:
+    #     data['product_name'] = product_data.product_name
+    #     data['current_price'] = product_data.product_new_price
+    await process_track_url(message, state, product_data)
 
 
 async def process_track_is_valid_price(message: types.Message):

@@ -8,6 +8,7 @@ from celery.result import AsyncResult
 from db import Products, Cities, Users
 from tasks import task_get_product_data
 from tg_bot.main_menu.menu_kb import main_menu
+from tg_bot.price_tracker.tracker import ProductInfo
 from tg_bot.price_tracker.tracker_kb import back_to_menu, tracker_menu, enter_city_name_button
 from tg_bot.price_tracker.validators import validate_url
 
@@ -142,13 +143,13 @@ async def process_tracking_cancel(callback: types.CallbackQuery, state: FSMConte
     """
     current_state: state = await state.get_state()
     if current_state is None:
-        return
+        return await state.finish()
 
     await state.finish()
     await callback.message.answer('Отменено', reply_markup=back_to_menu)
 
 
-async def process_track_url(message: types.Message, state: FSMContext):
+async def process_track_url(message: types.Message, state: FSMContext, product_data: ProductInfo):
     """
     Сохраняет валидированный URL от пользователя в машину состояний.
     Кнопка: выводится автоматически после успешной валидации URL, введенного пользователем
@@ -158,7 +159,8 @@ async def process_track_url(message: types.Message, state: FSMContext):
         data['product_url'] = message.text
 
     await Form.next()
-    await message.reply('Введите желаемую цену в рублях: \n Текущая цена: {}'.format(data['current_price']))
+    await message.reply('Введите желаемую цену в рублях: \n Текущая цена: {}'.format(
+        product_data.product_new_price if product_data.product_new_price else 'Неизвестно'))
 
 
 async def process_track_price(message: types.Message, state: FSMContext):

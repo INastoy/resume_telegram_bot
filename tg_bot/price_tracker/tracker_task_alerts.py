@@ -5,7 +5,7 @@ from tg_bot.bot import bot
 from tg_bot.price_tracker.tracker import ProductInfo
 
 
-async def send_price_alert(price_alert: Type[ProductInfo], tg_user_id: int, product_url) -> None:
+async def send_price_alert(price_alert: ProductInfo, tg_user_id: int, product_url: str):
     """
     Отправляет пользователю оповещение о снижении цены товара до желаемого уровня
     Кнопка: нет. выполняется автоматически при успешном выполнении условий в таске
