@@ -1,8 +1,10 @@
+from typing import Type
+
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 
 from db import Products, Users
-from tg_bot.price_tracker.tracker import get_product_data
+from tg_bot.price_tracker.tracker import get_product_data, ProductInfo
 from tg_bot.price_tracker.tracker_handlers import Form, process_track_url
 from tg_bot.price_tracker.tracker_kb import cancel_menu, stop_tracking_menu
 from tg_bot.price_tracker.validators import is_valid_url, validate_url
@@ -44,23 +46,30 @@ async def process_is_url_exists_or_tracking_already(message: types.Message, stat
 
     try:
         warning = await message.answer('Ожидайте, идет поиск...')
-        product_data: dict = get_product_data(valid_url+city_code)
+        product_data: Type[ProductInfo] = get_product_data(valid_url+city_code)
         await warning.delete()
     except AttributeError:
         return await message.reply('Запрашиваемая страница недоступна.\n'
                                    'Проверьте правильность ввода или повторите попытку позднее',
                                    reply_markup=cancel_menu)
 
-    await message.answer(
-            f'Название: {product_data["product_name"]}\n'
-            f'Старая цена: {product_data["product_old_price"]}:\n'
-            f'Текущая цена: {product_data["product_new_price"]}:\n'
-            f'Бонусы:{product_data["product_bonuses"]}'
+    if ProductInfo.is_product_in_stock:
+        await message.answer(
+            f'Название: {product_data.product_name}\n'
+            f'Старая цена: {product_data.product_old_price}:\n'
+            f'Текущая цена: {product_data.product_new_price}:\n'
+            f'Бонусы: {product_data.product_bonuses}'
+        )
+    else:
+        await message.answer(
+            f'Название: {product_data.product_name}\n'
+            f'Текущая цена: Товара нет в наличии.\n'
+            f'Статус: {product_data.was_last_in_stock}:\n'
         )
 
     async with state.proxy() as data:
-        data['product_name'] = product_data["product_name"]
-        data['current_price'] = product_data["product_new_price"]
+        data['product_name'] = product_data.product_name
+        data['current_price'] = product_data.product_new_price
     await process_track_url(message, state)
 
 

@@ -10,7 +10,6 @@ async def cmd_start(message: types.Message):
     """
     Начало работы с ботом. Выводит главное меню
     """
-
     await message.answer('Главное меню:', reply_markup=main_menu)
     await db_filler()  #TODO Временное решение для тестового заполнения базы данных кодами городов. Исправить
     if not await Users.objects.get_or_none(tg_user_id=message.from_user.id):

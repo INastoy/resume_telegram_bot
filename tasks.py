@@ -1,18 +1,17 @@
 import asyncio
 import logging
+from typing import Type
 
 from aiogram import types
 from celery import Celery, Task
 from celery.result import AsyncResult
 from celery.schedules import crontab
 
-from tg_bot.price_tracker.tracker import get_product_data
+from tg_bot.price_tracker.tracker import get_product_data, ProductInfo
 from tg_bot.price_tracker.tracker_task_alerts import send_price_alert
 
 app = Celery('tasks', broker='redis://localhost:6379/0', backend='redis://localhost:6379/0')
 app.control.rate_limit('tasks.task_get_product_data', '3/m')
-# app.conf.broker_url = 'redis://localhost:6379/0'
-# app.conf.result_backend = 'redis://localhost:6379/0'
 
 
 @app.task
@@ -26,9 +25,9 @@ def task_get_product_data(self, product_url, desired_price: int, tg_user_id):
 
     async def async_get_product_data():
         try:
-            price_alert: dict = get_product_data(product_url)
+            price_alert: Type[ProductInfo] = get_product_data(product_url)
 
-            if price_alert.get('product_new_price') and int(price_alert.get('product_new_price')) <= int(desired_price):
+            if price_alert.product_new_price and int(price_alert.product_new_price) <= int(desired_price):
                 await send_price_alert(price_alert, tg_user_id, product_url)
             else:
                 self.retry(countdown=60)

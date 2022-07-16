@@ -1,5 +1,6 @@
 import re
-from collections import namedtuple
+from dataclasses import dataclass
+from typing import Type, Union
 
 from bs4 import BeautifulSoup
 from requests import Session
@@ -13,7 +14,17 @@ session.headers = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Appl
                    "--disable-blink-features": "AutomationControlled"}
 
 
-def get_club_price(product_soup):
+@dataclass
+class ProductInfo:
+    product_name: str
+    is_product_in_stock: bool
+    was_last_in_stock: str
+    product_old_price: int = None
+    product_new_price: int = None
+    product_bonuses: int = None
+
+
+def get_club_price(product_soup: BeautifulSoup) -> int:
     club_price_info = product_soup.find("div", class_="ProductHeader__link-inner ProductHeader__club-price-title")
     if club_price_info:
         number_list = re.findall("\d", club_price_info.text)
@@ -23,11 +34,11 @@ def get_club_price(product_soup):
         return int(club_price)
 
 
-def get_product_name(product_soup):
+def get_product_name(product_soup: BeautifulSoup) -> str:
     product_name = product_soup.find(
-            'h1',
-            class_='Heading Heading_level_1 ProductHeader__title'
-        )
+        'h1',
+        class_='Heading Heading_level_1 ProductHeader__title'
+    )
     if product_name:
         return product_name.text.strip()
     product_name = product_soup.find("h1", class_="Heading Heading_level_1 ProductPageTitleSection__text")
@@ -35,27 +46,38 @@ def get_product_name(product_soup):
         return product_name.text.strip()
 
 
-def get_product_info(product_soup):
-    price_info = {
-        "product_old_price": None,
-        "product_new_price": None,
-        "product_name": get_product_name(product_soup)
-    }
+def is_in_stock(product_soup: BeautifulSoup) -> bool:
+    soup = product_soup.find('h2', class_='ProductHeader__not-available-header')
+    if soup:
+        text = soup.text.strip()
+        if text == 'Нет в наличии':
+            return False
+    return True
 
+
+def get_last_in_stock(product_soup: BeautifulSoup) -> str:
+    last_in_stock = product_soup.find('div', class_='ProductHeader__not-available-date')
+    if last_in_stock:
+        return last_in_stock.text.strip()
+    else:
+        return 'Нет данных'
+
+
+def get_product_price(product_soup: BeautifulSoup):
     product_old_price = product_soup.find(
         'span',
         class_="ProductHeader__price-old_current-price js--ProductHeader__price-old_current-price"
     )
     product_new_price = product_soup.find('span', class_='ProductHeader__price-default_current-price')
     if product_old_price and product_new_price:  # Товар доступен со скидкой
-        price_info["product_old_price"] = int(product_old_price.text.strip().replace(' ', ''))
+        ProductInfo.product_old_price = int(product_old_price.text.strip().replace(' ', ''))
 
         club_price = get_club_price(product_soup)
         if club_price:
-            price_info["product_new_price"] = club_price
+            ProductInfo.product_new_price = club_price
         else:
-            price_info["product_new_price"] = int(product_new_price.text.strip().replace(' ', ''))
-        return price_info
+            ProductInfo.product_new_price = int(product_new_price.text.strip().replace(' ', ''))
+        return ProductInfo
 
     price = product_soup.find(
         'span',
@@ -64,27 +86,29 @@ def get_product_info(product_soup):
     if price:  # Цена без скидки
         club_price = get_club_price(product_soup)
         if club_price:
-            price_info["product_new_price"] = club_price
-            price_info["product_old_price"] = price.text.strip().replace(' ', '')
+            ProductInfo.product_new_price = club_price
+            ProductInfo.product_old_price = price.text.strip().replace(' ', '')
         else:
-            price_info["product_new_price"] = int(price.text.strip().replace(' ', ''))
+            ProductInfo.product_new_price = int(price.text.strip().replace(' ', ''))
 
-        return price_info
+
+def get_product_bonuses(product_soup) -> Union[None, str]:
+    if ProductInfo.product_new_price:
+        return product_soup.find('div', class_='ProductHeader__bonus-block').text.strip()
     else:
-        return price_info
+        return None
 
 
-def get_product_data(product_url) -> dict:
+def get_product_data(product_url) -> Type[ProductInfo]:
     response_product = session.get(product_url)
     product_soup = BeautifulSoup(response_product.text, 'lxml')
-    product_info = get_product_info(product_soup)
-    if product_info.get("product_new_price"):
-        product_info["product_bonuses"] = product_soup.find('div', class_='ProductHeader__bonus-block').text.strip()
-    else:
-        product_info["product_bonuses"] = None
 
-    ProductInfo = namedtuple("ProductInfo", "product_name product_old_price product_new_price product_bonuses")
+    ProductInfo.product_name = get_product_name(product_soup)
+    ProductInfo.is_product_in_stock = is_in_stock(product_soup)
+    if not ProductInfo.is_product_in_stock:
+        ProductInfo.was_last_in_stock = get_last_in_stock(product_soup)
+        return ProductInfo
+    get_product_price(product_soup)
+    ProductInfo.product_bonuses = get_product_bonuses(product_soup)
 
-    product_info = ProductInfo(**product_info)
-
-    return product_info._asdict()
+    return ProductInfo
