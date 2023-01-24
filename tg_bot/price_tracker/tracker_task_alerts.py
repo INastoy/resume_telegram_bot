@@ -1,5 +1,3 @@
-from typing import Type
-
 from db import Products
 from tg_bot.bot import bot
 from tg_bot.price_tracker.tracker import ProductInfo

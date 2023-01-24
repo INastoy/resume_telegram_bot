@@ -1,26 +1,17 @@
 import asyncio
 import logging
-from typing import Type
 
-from aiogram import types
 from celery import Celery, Task
-from celery.result import AsyncResult
-from celery.schedules import crontab
 
 from tg_bot.price_tracker.tracker import get_product_data, ProductInfo
 from tg_bot.price_tracker.tracker_task_alerts import send_price_alert
 
-app = Celery('tasks', broker='redis://localhost:6379/0', backend='redis://localhost:6379/0')
+app: Celery = Celery('tasks', broker='redis://localhost:6379/0', backend='redis://localhost:6379/0')
 app.control.rate_limit('tasks.task_get_product_data', '3/m')
 
 
-@app.task
-def add(x, y):
-    return x + y
-
-
 @app.task(bind=True)
-def task_get_product_data(self, product_url, desired_price: int, tg_user_id):
+def task_get_product_data(self, product_url: str, desired_price: int, tg_user_id: int):
     self.max_retries = None
 
     async def async_get_product_data():

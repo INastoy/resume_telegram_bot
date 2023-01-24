@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from typing import Type, Union
+from typing import Union
 
 from bs4 import BeautifulSoup
 from requests import Session
@@ -71,10 +71,11 @@ def get_product_price(product_soup: BeautifulSoup, product_info: ProductInfo) ->
         class_="ProductHeader__price-old_current-price js--ProductHeader__price-old_current-price"
     )
     product_new_price = product_soup.find('span', class_='ProductHeader__price-default_current-price')
+    club_price: int = get_club_price(product_soup)
+
     if product_old_price and product_new_price:  # Товар доступен со скидкой
         product_info.product_old_price = int(product_old_price.text.strip().replace(' ', ''))
 
-        club_price = get_club_price(product_soup)
         if club_price:
             product_info.product_new_price = club_price
         else:
@@ -86,10 +87,9 @@ def get_product_price(product_soup: BeautifulSoup, product_info: ProductInfo) ->
         class_='ProductHeader__price-default_current-price js--ProductHeader__price-default_current-price'
     )
     if price:  # Цена без скидки
-        club_price = get_club_price(product_soup)
         if club_price:
             ProductInfo.product_new_price = club_price
-            ProductInfo.product_old_price = price.text.strip().replace(' ', '')
+            ProductInfo.product_old_price = int(price.text.strip().replace(' ', ''))
         else:
             ProductInfo.product_new_price = int(price.text.strip().replace(' ', ''))
 
